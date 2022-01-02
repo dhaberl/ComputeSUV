@@ -39,8 +39,8 @@ def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_do
     # Ensure parameter validity
     check = [weight, time_difference, half_life, injected_dose]
     for i in check:
-        assert i > 0, 'Invalid input. Weight is negative'
-        assert i != np.nan, 'Invalid input. No NaNs allowed'
+        assert i > 0, f'Invalid input. No negative values allowed. Value: {i}'
+        assert np.isnan(i) == False, f'Invalid input. No NaNs allowed. Value is NaN: {np.isnan(i)}'
 
     assert weight < 1000, 'Weight exceeds 1000 kg, did you really used kg unit?'
 
