@@ -1,14 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 SUV CALCULATOR
 Contains computation of Standardized Uptake Values based on body weight (SUVbw)
 along with its utility functions.
 Date: 2022-01-02 18:12:53
-Author: dhaberl
 Reference:
-https://github.com/mvallieres/radiomics/blob/master/Utilities/computeSUVmap.m
+[1] https://github.com/mvallieres/radiomics/blob/master/Utilities/computeSUVmap.m
 """
 
 from datetime import datetime
@@ -27,7 +23,7 @@ def _assert_time_format(time):
 
 
 def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_dose):
-    """Compute SUV map based on given weight and injected dose decay."""
+    """Compute SUVbw map based on given weight and injected dose decay."""
 
     # Assert time format
     scan_time = _assert_time_format(scan_time)
@@ -61,7 +57,10 @@ def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_do
 
 
 def get_dicom_tags(dcm):
-    """Return required information for SUV calculation"""
+    """
+    Return informative and required information for SUV calculation
+    Informative: sex and age can help for estimations if values are missing
+    """
 
     # Ensure input parameter validity
     assert dcm.Modality == 'PT', 'Passed DICOM file is not a Positron-Emission-Tomography scan. Check DICOM Modality Tag.'
