@@ -1,8 +1,5 @@
 """
-SUV CALCULATOR
-Contains computation of Standardized Uptake Values based on body weight (SUVbw)
-along with its utility functions.
-Date: 2022-01-02 18:12:53
+COMPUTATION OF STANDARDIZED UPTAKE VALUES BASED ON BODY WEIGHT (SUVbw)
 Reference:
 [1] https://github.com/mvallieres/radiomics/blob/master/Utilities/computeSUVmap.m
 """
@@ -14,7 +11,16 @@ import pandas as pd
 
 
 def _assert_time_format(time):
+    """
+    Time stamp formatting
 
+    Args:
+        time (str): Time stamp from DICOM file.
+
+    Returns:
+        time: datetime object
+    """
+    # Cut off milliseconds
     time = time.split('.')[0]
     time_format = '%H%M%S'
     time = datetime.strptime(time, time_format)
@@ -22,8 +28,23 @@ def _assert_time_format(time):
     return time
 
 
-def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_dose):
-    """Compute SUVbw map based on given weight and injected dose decay."""
+def compute_suvbw_map(img, weight, scan_time, injection_time, half_life, injected_dose):
+    """
+    Compute SUVbw map based on given weight and injected dose decay.
+
+    Args:
+        img: Input image ndarray. Each pixel/voxel is associated with its radioactivity
+        represented as volume concentration MBq/mL. 
+        weight: Patient body weight in kilograms.
+        scan_time (str): Acquisition time (start time of PET). Time stamp from DICOM file.
+        injection_time (str): Injection time; time when radiopharmaceutical dose was administered.
+        Time stamp from DICOM file.
+        half_life: Half life of used radiopharmaceutical in seconds.
+        injected_dose: Injected total dose of administered radiopharmaceutical in Mega Becquerel.
+
+    Returns:
+        suv_map: Image ndarray. Each pixel/voxel is associated with its SUVbw.
+    """
 
     # Assert time format
     scan_time = _assert_time_format(scan_time)
@@ -36,21 +57,22 @@ def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_do
     check = [weight, time_difference, half_life, injected_dose]
     for i in check:
         assert i > 0, f'Invalid input. No negative values allowed. Value: {i}'
-        assert np.isnan(i) == False, f'Invalid input. No NaNs allowed. Value is NaN: {np.isnan(i)}'
+        assert np.isnan(
+            i) == False, f'Invalid input. No NaNs allowed. Value is NaN: {np.isnan(i)}'
 
     assert weight < 1000, 'Weight exceeds 1000 kg, did you really used kg unit?'
 
     img = np.asarray(img)
 
-    # Calculate decay
+    # Calculate decay for decay correction
     decay = np.exp(-np.log(2) * time_difference / half_life)
-    # Calculate the dose decayed during procedure in [Bq]
+    # Calculate the dose decayed during procedure in Bq
     injected_dose_decay = injected_dose * decay
 
     # Weight in grams
     weight = weight * 1000
 
-    # SUVbw in g/ml
+    # Calculate SUVbw
     suv_map = img * weight / injected_dose_decay
 
     return suv_map
@@ -58,63 +80,77 @@ def compute_suvbw(img, weight, scan_time, injection_time, half_life, injected_do
 
 def get_dicom_tags(dcm):
     """
-    Return informative and required information for SUV calculation
-    Informative: sex and age can help for estimations if values are missing
+    Return informative and required DICOM tags for SUV calculation. Missing DICOM tags will be returned as NaNs.
+    Note: sex and age is not required but can help for estimations if values are missing (e.g. body weight)
+
+    DICOM tags:
+    https://dicom.innolitics.com/ciods
+
+    Args:
+        dcm (pydicom.dataset.FileDataset): Loaded DICOM file.
+        Example:
+            dcm = pydicom.dcmread(path_to_dcm_file)
+
+        pydicom:
+        https://pydicom.github.io/pydicom/stable/old/ref_guide.html
+
+    Returns:
+        dict: Dictionary with DICOM tags.
     """
 
     # Ensure input parameter validity
-    assert dcm.Modality == 'PT', 'Passed DICOM file is not a Positron-Emission-Tomography scan. Check DICOM Modality Tag.'
+    assert dcm.Modality == 'PT', 'Passed DICOM file is not a Positron-Emission-Tomography scan. Check DICOM Modality tag.'
 
-    # Get Patient Age
+    # Get patient age
     try:
         age = dcm.PatientAge
     except AttributeError:
         print('Age is not stored in DICOM file.')
         age = np.nan
 
-    # Get Patient Sex
+    # Get patient sex
     try:
         sex = dcm.PatientSex
     except AttributeError:
         print('Sex is not stored in DICOM file.')
         sex = np.nan
 
-    # Get Patient Weight
+    # Get patient weight
     try:
         weight = dcm.PatientWeight
     except AttributeError:
         print('Weight is not stored in DICOM file.')
         weight = np.nan
 
-    # Get Radiopharmaceutical Information
+    # Get radiopharmaceutical information (radiotracer)
     try:
         tracer = dcm.RadiopharmaceuticalInformationSequence[0].Radiopharmaceutical
     except AttributeError:
         print('Radiopharmaceutical Info is not stored in DICOM file.')
         tracer = np.nan
 
-    # Get Scan Time
+    # Get scan time
     try:
         scan_time = dcm.AcquisitionTime
     except AttributeError:
         print('Acquisition Time is not stored in DICOM file.')
         scan_time = np.nan
 
-    # Get Start Time for the Radiopharmaceutical Injection
+    # Get start time of the radiopharmaceutical injection
     try:
         injection_time = dcm.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
     except AttributeError:
         print('Injection Time is not stored in DICOM file.')
         injection_time = np.nan
 
-    # Get Half Life for Radionuclide
+    # Get half life of radionuclide
     try:
         half_life = dcm.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife
     except AttributeError:
         print('Half Life is not stored in DICOM file.')
         half_life = np.nan
 
-    # Get Total dose injected for Radionuclide
+    # Get total dose injected for radionuclide
     try:
         injected_dose = dcm.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose
     except AttributeError:
@@ -126,21 +162,31 @@ def get_dicom_tags(dcm):
 
 
 def print_dicom_report(dcms, uids, save_as=None):
+    """
+    Prints DICOM tag report of a list of DICOM files
 
-    df = {'id': [], 'age': [], 'sex': [], 'weight': [], 'tracer': [], 'scan_time': [],
-          'injection_time': [], 'half_life': [], 'injected_dose': []}
+    Args:
+        dcms (list): List of DICOM files loaded as pydicom.dataset.FileDataset.
+        uids (list): List of unique IDs for each DICOM file.
+        save_as (str, optional): Filename. Defaults to None.
+
+    Returns:
+        dicom_report (dict): DICOM report as dictionary.
+    """
+    dicom_report = {'id': [], 'age': [], 'sex': [], 'weight': [], 'tracer': [], 'scan_time': [],
+                    'injection_time': [], 'half_life': [], 'injected_dose': []}
 
     for i in zip(dcms, uids):
         tags = get_dicom_tags(i[0])
-        df['id'].append(i[1])
+        dicom_report['id'].append(i[1])
 
         for tag in tags.keys():
-            df[tag].append(tags[tag])
+            dicom_report[tag].append(tags[tag])
 
-    df = pd.DataFrame(df)
+    df = pd.DataFrame(dicom_report)
     print(df)
 
     if save_as:
         df.to_csv(save_as, index=False)
 
-    return df
+    return dicom_report
