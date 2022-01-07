@@ -1,0 +1,3 @@
+numpy == 1.21.2
+pandas == 1.3.4
+pydicom == 2.2.2
