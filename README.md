@@ -1,6 +1,6 @@
 # Calculate Standardized Uptake Values based on body weight (SUVbw)
 
-See: https://github.com/dhaberl/Tools/tree/main/tools/suv_conversion for a more convinient version!
+See: https://github.com/dhaberl/Tools/tree/main/tools/suv_conversion for a more convenient version!
 
 Computes the SUVbw of PET scans from NumPy arrays.
 
